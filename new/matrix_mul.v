@@ -25,7 +25,7 @@
 //A的列数，B的行数
 `define NUM 3
 
-module MUL
+module matrix_mul
 #(
 parameter DATA_W=8
 )

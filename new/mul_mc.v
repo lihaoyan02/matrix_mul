@@ -22,7 +22,7 @@
 `define BOOTHCODE_LEN 3
 `define PART_PRDT_NUM 5
 
-module MULINT_MC
+module mul_mc
 #(
 parameter DATA_W=8
 )

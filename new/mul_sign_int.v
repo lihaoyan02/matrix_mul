@@ -1,12 +1,13 @@
 
 //////////////////////////////////////////////////////////////////////////////////
-// Module Name: MULINT
+// Module Description: 
+// 1 cycle 8 bit signed int multiply with booth encoding and dada tree
 //////////////////////////////////////////////////////////////////////////////////
 
 `define BOOTHCODE_LEN 3
 `define PART_PRDT_NUM 5
 
-module MULINT
+module mul_sign_int
 #(
 parameter DATA_W=8
 )
@@ -103,7 +104,7 @@ parameter DATA_W=8
                                     | ({(DATA_W+1){booth_code[j]== 3'b100}} & ~{op1,1'b0})
                                     | ({(DATA_W+1){booth_code[j]== 3'b101}} & ~{op1_sign,op1})
                                     | ({(DATA_W+1){booth_code[j]== 3'b110}} & ~{op1_sign,op1})
-                                    | ({(DATA_W+1){booth_code[j]== 3'b111}} & {(DATA_W+1){1'b0}});
+                                    | ({(DATA_W+1){booth_code[j]== 3'b111}} & ~{(DATA_W+1){1'b0}});
             assign  part_prdt_sign[j] = part_prdt[j][DATA_W];
         end
     endgenerate
@@ -200,43 +201,80 @@ FA  u_S3_FA5(s2_bt12_0, s2_bt12_1c, part_prdt[4][12-8], s3_bt12_0, s3_bt13_1c);
 FA  u_S3_FA6(s2_bt13_0, s2_bt13_1c, part_prdt[4][13-8], s3_bt13_0, s3_bt14_1c);
 
 HA  u_S3_HA7(s2_bt14_0, s2_bt14_1c, s3_bt14_0, s3_bt15_1c);
-FA  u_S3_FA7(s2_bt15_0, ~part_prdt_sign[3], part_prdt[4][15-8],s3_bt15_0,s3_bt16_1c);
+FA  u_S3_FA7(s2_bt15_0c, ~part_prdt_sign[3], part_prdt[4][15-8],s3_bt15_0,s3_bt16_1c);
 HA  u_S3_HA8(1'b1, part_prdt[4][16-8], s3_bt16_0, s3_bt17_0c);
 
-assign op_pls_1 = { part_prdt[0][0],
-                    part_prdt[0][1],
-                    s3_bt2_0,
-                    s3_bt3_0,
-                    s3_bt4_0,
-                    s3_bt5_0,
-                    s3_bt6_0,
-                    s3_bt7_0,
-                    s3_bt8_0,
-                    s3_bt9_0,
-                    s3_bt10_0,
-                    s3_bt11_0,
-                    s3_bt12_0,
-                    s3_bt13_0,
-                    s3_bt14_0,
-                    s3_bt15_0};
-                    // s3_bt16_0}
+//assign op_pls_1 = { part_prdt[0][0],
+//                    part_prdt[0][1],
+//                    s3_bt2_0,
+//                    s3_bt3_0,
+//                    s3_bt4_0,
+//                    s3_bt5_0,
+//                    s3_bt6_0,
+//                    s3_bt7_0,
+//                    s3_bt8_0,
+//                    s3_bt9_0,
+//                    s3_bt10_0,
+//                    s3_bt11_0,
+//                    s3_bt12_0,
+//                    s3_bt13_0,
+//                    s3_bt14_0,
+//                    s3_bt15_0};
+//                    // s3_bt16_0}
 
-assign op_pls_2 = { booth_sign[0],
-                    1'b0,
-                    1'b0,
-                    s3_bt3_1c,
-                    s3_bt4_1c,
-                    s3_bt5_1c,
-                    s3_bt6_1c,
-                    s3_bt7_1c,
-                    s3_bt8_1c,
-                    s3_bt9_1c,
-                    s3_bt10_1c,
-                    s3_bt11_1c,
-                    s3_bt12_1c,
-                    s3_bt13_1c,
+assign op_pls_1 = { s3_bt15_0,
+                    s3_bt14_0,
+                    s3_bt13_0,
+                    s3_bt12_0,
+                    s3_bt11_0,
+                    s3_bt10_0,
+                    s3_bt9_0,
+                    s3_bt8_0,
+                    s3_bt7_0,
+                    s3_bt6_0,
+                    s3_bt5_0,
+                    s3_bt4_0,
+                    s3_bt3_0,
+                    s3_bt2_0,
+                    part_prdt[0][1],
+                    part_prdt[0][0]};
+
+//assign op_pls_2 = { booth_sign[0],
+//                    1'b0,
+//                    1'b0,
+//                    s3_bt3_1c,
+//                    s3_bt4_1c,
+//                    s3_bt5_1c,
+//                    s3_bt6_1c,
+//                    s3_bt7_1c,
+//                    s3_bt8_1c,
+//                    s3_bt9_1c,
+//                    s3_bt10_1c,
+//                    s3_bt11_1c,
+//                    s3_bt12_1c,
+//                    s3_bt13_1c,
+//                    s3_bt14_1c,
+//                    s3_bt15_1c};
+//                    // s3_bt16_1c}
+                    
+                    
+assign op_pls_2 = { s3_bt15_1c,
                     s3_bt14_1c,
-                    s3_bt15_1c};
+                    s3_bt13_1c,
+                    s3_bt12_1c,
+                    s3_bt11_1c,
+                    s3_bt10_1c,
+                    s3_bt9_1c,
+                    s3_bt8_1c,
+                    s3_bt7_1c,
+                    s3_bt6_1c,
+                    s3_bt5_1c,
+                    s3_bt4_1c,
+                    s3_bt3_1c,
+                    1'b0,
+                    1'b0,
+                    booth_sign[0]
+                    };
                     // s3_bt16_1c}
 
 // last stage
