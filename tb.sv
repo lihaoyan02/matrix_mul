@@ -32,25 +32,36 @@
 module tb();
     logic clk;
     logic rst_n;
-    logic trig;
+    logic d_valid;
+    logic d_ready;
     logic en;
     logic out_vld;
     logic [`DWIDTH*`ROW*`NUM-1:0] din_A_r;
     logic [`DWIDTH*`COL*`NUM-1:0] din_B_r;
     logic [2*`DWIDTH*`ROW*`COL-1:0] dout_C_r;
     
+    logic handshaked;
+    assign handshaked = d_valid & d_ready;
     
     reg     signed  [`DWIDTH-1:0] din_A_RAM [`ROW-1:0][`NUM-1:0];
     reg     signed  [`DWIDTH-1:0] din_B_RAM [`NUM-1:0][`COL-1:0];
     reg     signed  [2*`DWIDTH-1:0] dout_C_RAM [`ROW-1:0][`COL-1:0];
-    reg     signed  [2*`DWIDTH-1:0] dout_C_Ref [`ROW-1:0][`COL-1:0];
+//    reg     signed  [2*`DWIDTH-1:0] dout_C_Ref [`ROW-1:0][`COL-1:0];
+    
+    typedef struct{
+        logic signed [2*`DWIDTH-1:0] data[`ROW-1:0][`COL-1:0];
+    } matrix_t;
+    
+    matrix_t ref_q[$];
+    matrix_t dout_C_Ref;
+    matrix_t exp_val;
     
     always #(`T_CLK/2) clk=~clk;
     initial begin
         clk=0;
         rst_n=0;
         en=0;
-        trig = 0;
+        d_valid = 0;
         #(10*`T_CLK)
         rst_n=1;
         
@@ -74,12 +85,13 @@ module tb();
   task automatic matmul_ref();
     for (int i = 0; i < `ROW; i++) begin
       for (int j = 0; j < `COL; j++) begin
-        dout_C_Ref[i][j] = 0;
+        dout_C_Ref.data[i][j] = 0;
         for (int k = 0; k < `NUM; k++) begin
-          dout_C_Ref[i][j] += din_A_RAM[i][k] * din_B_RAM[k][j];
+          dout_C_Ref.data[i][j] += din_A_RAM[i][k] * din_B_RAM[k][j];
         end
       end
     end
+    ref_q.push_back(dout_C_Ref);
   endtask
   
       // ===================================================
@@ -108,16 +120,15 @@ module tb();
       end
     end
     
-    // 保存结果
-//    task rec_out();
-//      for (int i = 0; i < `ROW; i++) begin
-//        for (int j = 0; j < `COL; j++) begin
-//          // 注意：转置后 B[i][j] = 原来的 B[j][i]
-//          dout_C_RAM[i][j] = dout_C_r[(i*`COL + j)*`DWIDTH +: 2*`DWIDTH];
-//        end
-//      end
-//    endtask
-    
+    initial begin
+        forever begin
+            @(posedge clk);
+            if(handshaked) begin
+                init_inputs();
+                matmul_ref();
+            end
+        end
+    end
     //捕获输出
     initial begin
         forever begin
@@ -126,45 +137,23 @@ module tb();
             // 收到有效信号，保存数据
             for (int i = 0; i < `ROW; i++) begin
             for (int j = 0; j < `COL; j++) begin
-              // 注意：转置后 B[i][j] = 原来的 B[j][i]
               dout_C_RAM[i][j] = dout_C_r[(i*`COL + j)*2*`DWIDTH +: 2*`DWIDTH];
             end
             end 
+            exp_val = ref_q.pop_front();
             compare_matrices(
             .mat1(dout_C_RAM),
-            .mat2(dout_C_Ref)
+            .mat2(exp_val.data)
             );
-            rst_n =0;
-            en =0;
-            init_inputs();
-            matmul_ref();
-            @(posedge clk);
-            rst_n =1;
-            @(posedge clk);
-            en=1;
-            trig = 1;
-            #`T_CLK
-            trig = 0;
         end 
         end
     end
-//    task automatic capture_dout_C_on_valid(
-//        input  logic                     clk,
-//        input  logic                     out_vld,
-//        input  logic [`DWIDTH*`ROW*`COL-1:0] dout_C_r,
-//        output reg signed [2*`DWIDTH-1:0] dout_C_RAM [`ROW-1:0][`COL-1:0]
-//    );
-//        begin
-    
-//            // 一直等待 clk 上升沿并检测 out_vld
-            
-//        end
-//    endtask
+
     
     //比较结果
     function compare_matrices(
-        input reg signed [2*`DWIDTH-1:0] mat1 [`ROW-1:0][`COL-1:0],
-        input reg signed [2*`DWIDTH-1:0] mat2 [`ROW-1:0][`COL-1:0]
+        input logic signed [2*`DWIDTH-1:0] mat1 [`ROW-1:0][`COL-1:0],
+        input logic signed [2*`DWIDTH-1:0] mat2 [`ROW-1:0][`COL-1:0]
     );
         automatic int errors = 0;
         begin
@@ -178,10 +167,10 @@ module tb();
                 end
             end
     
-            if (errors == 0)
-                $display("✅ All elements match!");
-            else
-                $display("❌ Total mismatches: %0d", errors);
+            if (errors != 0)
+                $display(" Total mismatches: %0d", errors);
+//            else
+//                $display(" All elements match!");
         end
     endfunction
     
@@ -191,11 +180,10 @@ module tb();
         #(`T_CLK/2)
         #(15*`T_CLK)
         en=1;
-        trig = 1;
-        #`T_CLK
-        trig = 0;
+        @(posedge clk)
+        d_valid = 1;
         
-        #(100*`T_CLK)
+        #(1000*`T_CLK)
         $finish;
         
     end
@@ -208,7 +196,8 @@ module tb();
         .clk        (clk    )        ,
         .rst_n      (rst_n  )        ,
         .en         (en     )        ,
-        .trig       (trig   )        ,       
+        .in_Dvalid  (d_valid),
+        .out_Dready (d_ready),       
         .din_A      (din_A_r)        ,       
         .din_B      (din_B_r)        ,
         .dout_C     (dout_C_r )        ,

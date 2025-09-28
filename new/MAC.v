@@ -45,12 +45,13 @@ module MAC
     output  signed  [DATA_W*2-1:0]  Cellout_1_2,
     output  signed  [DATA_W*2-1:0]  Cellout_2_0,
     output  signed  [DATA_W*2-1:0]  Cellout_2_1,
-    output  signed  [DATA_W*2-1:0]  Cellout_2_2
+    output  signed  [DATA_W*2-1:0]  Cellout_2_2,
 
+    input   [`ROW-1:0]  in_tag_new,
+    output  [`ROW*`COL-1:0] out_valid
     );
 
     wire     signed  [2*DATA_W-1:0]  Cell[`ROW-1:0][`COL-1:0];
-    
 //    wire    [DATA_W-1:0]    row1_1_2;
 //    wire    [DATA_W-1:0]    row1_2_3;
 //    wire    [DATA_W-1:0]    row2_1_2;
@@ -74,10 +75,11 @@ module MAC
     
     wire    signed  [DATA_W-1:0]    ROW_connection[`ROW-1:0][`COL:0];
     wire    signed  [DATA_W-1:0]    COL_connection[`ROW:0][`COL-1:0];
+    wire    clr_connection[`ROW-1:0][`COL:0];
     
     assign ROW_connection[0][0] = din_r1;
     assign ROW_connection[1][0] = din_r2;
-    assign ROW_connection[2][0] = din_r3;
+    assign ROW_connection[2][0] = din_r3;   
     
     assign COL_connection[0][0] = din_c1;
     assign COL_connection[0][1] = din_c2;
@@ -102,15 +104,26 @@ module MAC
                 (
                 .clk(clk),
                 .rst_n(rst_n),
+                .clr_in(clr_connection[i][j]),
                 .DRowin(ROW_connection[i][j]),
                 .DColin(COL_connection[i][j]),     
                 
                 .DRowout(ROW_connection[i][j+1]),
                 .DColout(COL_connection[i+1][j]),
                 
-                .Cellout(Cell[i][j])
+                .Cellout(Cell[i][j]),
+                .clr_out(clr_connection[i][j+1])
                 );
             end
         end
+    endgenerate
+
+    generate
+        for ( i=0; i<`ROW; i=i+1) begin
+            for ( j=0; j<`COL; j=j+1) begin
+                assign out_valid[i*`COL+j] = clr_connection[i][j];
+            end
+            assign clr_connection[i][0] = in_tag_new[i];
+        end        
     endgenerate
 endmodule
